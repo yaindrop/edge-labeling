@@ -1,25 +1,25 @@
 {
   "files": {
-    "main.css": "./static/css/main.ca412afa.chunk.css",
-    "main.js": "./static/js/main.8d356ffa.chunk.js",
-    "main.js.map": "./static/js/main.8d356ffa.chunk.js.map",
-    "runtime-main.js": "./static/js/runtime-main.0d88e5e7.js",
-    "runtime-main.js.map": "./static/js/runtime-main.0d88e5e7.js.map",
-    "static/css/2.a72c35d3.chunk.css": "./static/css/2.a72c35d3.chunk.css",
-    "static/js/2.ff980bb6.chunk.js": "./static/js/2.ff980bb6.chunk.js",
-    "static/js/2.ff980bb6.chunk.js.map": "./static/js/2.ff980bb6.chunk.js.map",
-    "index.html": "./index.html",
-    "precache-manifest.3ff65401a7ad1a4f7ba8ac3b5f97665d.js": "./precache-manifest.3ff65401a7ad1a4f7ba8ac3b5f97665d.js",
-    "service-worker.js": "./service-worker.js",
-    "static/css/2.a72c35d3.chunk.css.map": "./static/css/2.a72c35d3.chunk.css.map",
-    "static/css/main.ca412afa.chunk.css.map": "./static/css/main.ca412afa.chunk.css.map",
-    "static/js/2.ff980bb6.chunk.js.LICENSE.txt": "./static/js/2.ff980bb6.chunk.js.LICENSE.txt"
+    "main.css": "/edge-labeling/static/css/main.ca412afa.chunk.css",
+    "main.js": "/edge-labeling/static/js/main.b398cf93.chunk.js",
+    "main.js.map": "/edge-labeling/static/js/main.b398cf93.chunk.js.map",
+    "runtime-main.js": "/edge-labeling/static/js/runtime-main.84658c42.js",
+    "runtime-main.js.map": "/edge-labeling/static/js/runtime-main.84658c42.js.map",
+    "static/css/2.a72c35d3.chunk.css": "/edge-labeling/static/css/2.a72c35d3.chunk.css",
+    "static/js/2.ff980bb6.chunk.js": "/edge-labeling/static/js/2.ff980bb6.chunk.js",
+    "static/js/2.ff980bb6.chunk.js.map": "/edge-labeling/static/js/2.ff980bb6.chunk.js.map",
+    "index.html": "/edge-labeling/index.html",
+    "precache-manifest.9646790712bb4012dd60953cc3a401db.js": "/edge-labeling/precache-manifest.9646790712bb4012dd60953cc3a401db.js",
+    "service-worker.js": "/edge-labeling/service-worker.js",
+    "static/css/2.a72c35d3.chunk.css.map": "/edge-labeling/static/css/2.a72c35d3.chunk.css.map",
+    "static/css/main.ca412afa.chunk.css.map": "/edge-labeling/static/css/main.ca412afa.chunk.css.map",
+    "static/js/2.ff980bb6.chunk.js.LICENSE.txt": "/edge-labeling/static/js/2.ff980bb6.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
-    "static/js/runtime-main.0d88e5e7.js",
+    "static/js/runtime-main.84658c42.js",
     "static/css/2.a72c35d3.chunk.css",
     "static/js/2.ff980bb6.chunk.js",
     "static/css/main.ca412afa.chunk.css",
-    "static/js/main.8d356ffa.chunk.js"
+    "static/js/main.b398cf93.chunk.js"
   ]
 }
