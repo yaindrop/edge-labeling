@@ -27,7 +27,11 @@
     cursor: crosshair;
 }
 
-.radio, .undo {
+#output {
+    display: none;
+}
+
+.radio, .button {
     margin: 6px;
 }
 

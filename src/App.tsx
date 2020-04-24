@@ -3,7 +3,7 @@ import { Radio, Button } from 'antd'
 import 'antd/dist/antd.css'
 
 import { srcUpdate, edgeUpdate, labelUpdate, displayUpdate, composeUpdate, DEFAULT_COMPOSE, roiUpdate } from './controller'
-import { edgeRoi, labelRoi, getVal, fallPos, selectTillBranch, fillSelect, needRepair, getRoi } from './model'
+import { edgeRoi, labelRoi, getVal, fallPos, selectTillBranch, fillSelect, needRepair, getRoi, outputLabel } from './model'
 import './App.css'
 
 type ActionMode = 0 | 1 | 2 | 3 | 4 | 5 | 6
@@ -12,7 +12,7 @@ const WIPE_EDGE: ActionMode = 1
 const DRAW_EDGE: ActionMode = 2
 const REPAIR_EDGE: ActionMode = 3
 const FILL_LABEL: ActionMode = 4
-const SAVE_LABEL: ActionMode = 5
+const VIEW_LABEL: ActionMode = 5
 const MOVE_CANVAS: ActionMode = 6
 
 type CursorMode = 0 | 1 | 2 | 3
@@ -56,11 +56,19 @@ const getRoiPos = (roi: any, relPos: number[]) => {
 
 export default function App() {
     const [isFocused, setFocused] = useState(false)
-    const [actionMode, setActionMode] = useState<ActionMode>(NO_ACTION)
+    const [actionMode, setActionMode] = useState<ActionMode>(MOVE_CANVAS)
     const [cursorMode, setCursorMode] = useState<CursorMode>(FALLING)
     const [isMouseDown, setMouseDown] = useState(false)
     const [movePrevPos, setMovePrevPos] = useState([-1, -1])
     const imageSrc = useRef<HTMLImageElement>(null)
+    const labelOutput = useRef<HTMLCanvasElement>(null)
+
+    const downloadLabel = useCallback(() => {
+        const link = document.createElement('a')
+        link.download = 'label.png'
+        link.href = labelOutput.current?.toDataURL("image/png")!
+        link.click();
+    }, [])
 
     const doAction = useCallback((pos: number[], pressed = false) => {
         let targets: number[][]
@@ -79,6 +87,7 @@ export default function App() {
         }
         if (actionMode === MOVE_CANVAS) {
             if (!isMouseDown) return
+            if (movePrevPos[0] === -1) return
             const roi = getRoi()
             roiUpdate.next({
                 ...roi,
@@ -153,6 +162,8 @@ export default function App() {
     }, [isFocused])
 
     const onCanvasMouseLeave = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
+        setMouseDown(false)
+        setMovePrevPos([-1, -1])
         displayUpdate.next((mat, util) => {
             if (!isFocused) util.dimBy(mat, 96)
         })
@@ -206,9 +217,9 @@ export default function App() {
                     setCursorMode(FLOATING)
                     composeUpdate.next({ ...DEFAULT_COMPOSE, bgWeight: 0.6 })
                     break
-                case SAVE_LABEL:
+                case VIEW_LABEL:
                     setCursorMode(DISABLED)
-                    composeUpdate.next({ ...DEFAULT_COMPOSE, showBg: false, showEdge: false, labelWeight: 1 })
+                    composeUpdate.next({ ...DEFAULT_COMPOSE, showEdge: false, labelWeight: 0.4 })
                     break
                 case MOVE_CANVAS:
                     setCursorMode(DISABLED)
@@ -232,6 +243,10 @@ export default function App() {
             case "z":
                 if (hist.length) undo(hist.pop()!)
                 break
+            case "s":
+                outputLabel()
+                downloadLabel()
+                break
             case "w":
                 newActionMode = WIPE_EDGE
                 break
@@ -244,17 +259,17 @@ export default function App() {
             case "d":
                 newActionMode = FILL_LABEL
                 break
-            case "s":
-                newActionMode = SAVE_LABEL
+            case "v":
+                newActionMode = VIEW_LABEL
                 break
-            case "m":
+            case "q":
                 newActionMode = MOVE_CANVAS
                 break
             default:
                 newActionMode = NO_ACTION
         }
         setModes(newCursorMode, newActionMode)
-    }, [actionMode, cursorMode, undo, setModes])
+    }, [actionMode, cursorMode, undo, setModes, downloadLabel])
 
     const onCanvasFocus = useCallback(() => {
         setFocused(true)
@@ -262,6 +277,8 @@ export default function App() {
 
     const onCanvasBlur = useCallback(() => {
         setFocused(false)
+        setMouseDown(false)
+        setMovePrevPos([-1, -1])
         displayUpdate.next((mat, util) => util.dimBy(mat, 96))
     }, [])
 
@@ -298,12 +315,12 @@ export default function App() {
                 <span>Action: </span>
                 <Radio.Group value={actionMode} onChange={(e) => setModes(cursorMode, e.target.value)} disabled={!getRoi()}>
                     <Radio.Button value={NO_ACTION}>No Action</Radio.Button>
+                    <Radio.Button value={MOVE_CANVAS}>Move Canvas (Q)</Radio.Button>
                     <Radio.Button value={WIPE_EDGE}>Wipe Edge (W)</Radio.Button>
                     <Radio.Button value={DRAW_EDGE}>Draw Edge (E)</Radio.Button>
                     <Radio.Button value={REPAIR_EDGE}>Repair Edge (R)</Radio.Button>
                     <Radio.Button value={FILL_LABEL}>Fill Label (D)</Radio.Button>
-                    <Radio.Button value={SAVE_LABEL}>Save Label (S)</Radio.Button>
-                    <Radio.Button value={MOVE_CANVAS}>Move Canvas (M)</Radio.Button>
+                    <Radio.Button value={VIEW_LABEL}>View Label (V)</Radio.Button>
                 </Radio.Group>
             </div>
             <div className="radio">
@@ -313,7 +330,8 @@ export default function App() {
                     <Radio.Button value={ADHERE} disabled={ValidCursorModes[actionMode].indexOf(ADHERE) < 0}>Adhere to Edge</Radio.Button>
                     <Radio.Button value={FLOATING} disabled={ValidCursorModes[actionMode].indexOf(FLOATING) < 0}>Floating</Radio.Button>
                 </Radio.Group>
-                <Button className="undo" type="danger" ghost onClick={() => { if (hist.length) undo(hist.pop()!) }} disabled={!getRoi()}>Undo (Z)</Button>
+                <Button className="button" type="danger" ghost onClick={() => { if (hist.length) undo(hist.pop()!) }} disabled={!getRoi()}>Undo (Z)</Button>
+                <Button className="button" type="primary" ghost onClick={() => { outputLabel(); downloadLabel() }} disabled={!getRoi()}>Save Label (S)</Button>
             </div>
             <div className="canvas">
                 <canvas
@@ -331,6 +349,7 @@ export default function App() {
                     tabIndex={1000}
                 />
             </div>
+            <canvas id="output" ref={labelOutput} />
         </div>
     );
 }

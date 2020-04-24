@@ -172,6 +172,12 @@ export const composeDisplay = (display: any, config: ComposeConfig) => {
     }
 }
 
+export const outputLabel = () => {
+    const labelThresed = new cv.Mat()
+    cv.threshold(labelMat, labelThresed, 254, 255, cv.THRESH_BINARY)
+    cv.imshow('output', labelThresed)
+}
+
 export const growValley = (mat: any) => {
     cv.threshold(mat, mat, 254, 255, cv.THRESH_BINARY);
     for (let i = 2; i < 6; i++) {
@@ -190,7 +196,7 @@ export const initMats = (src: HTMLImageElement) => {
     cv.cvtColor(bgMat, edgeMat, cv.COLOR_RGB2GRAY, 0)
     cv.Canny(edgeMat, edgeMat, 50, 100, 3, false)
     labelMat = new cv.Mat.zeros(edgeMat.rows, edgeMat.cols, edgeMat.type())
-    setRoi({ x: 550, y: 450, width: 500, height: 500 })
+    setRoi({ x: 0, y: 0, width: Math.min(400, src.width), height: Math.min(400, src.height) })
     growValley(edgeRoi)
 }
 
