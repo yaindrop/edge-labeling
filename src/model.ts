@@ -4,6 +4,11 @@ var bgMat: any
 var edgeMat: any
 var labelMat: any
 
+export const RoiRange = {
+    width: [16, 800],
+    height: [16, 800],
+}
+
 var roiRect: any
 
 var bgRoi: any
@@ -146,6 +151,7 @@ export const dimBy = (mat: any, amount: number) => {
 export const composeDisplay = (display: any, config: ComposeConfig) => {
     const blank = new cv.Mat.zeros(roiRect.height, roiRect.width, bgMat.type())
     blank.copyTo(display)
+    blank.delete()
     if (config.showBg) cv.addWeighted(display, 1, bgRoi, config.bgWeight, 0.0, display)
     if (config.showEdge) {
         const edgeCvted = new cv.Mat.zeros(roiRect.height, roiRect.width, edgeRoi.type())
@@ -202,26 +208,31 @@ export const initMats = (src: HTMLImageElement) => {
 
 export const getRoi = () => roiRect ? { ...roiRect } : undefined
 
+
+const fitRange = (r: number[], n: number) => n < r[0] ? r[0] : (n > r[1] ? r[1] : n)
+
+const restrictRoi = (roi: any) => {
+    roi.width = fitRange(RoiRange.width, roi.width)
+    roi.height = fitRange(RoiRange.height, roi.height)
+    roi.x = fitRange([0, bgMat.cols - roi.width], roi.x)
+    roi.y = fitRange([0, bgMat.rows - roi.height], roi.y)
+}
+
 export const setRoi = (roi: any) => {
-    if (roi.width < 16 || roi.height < 16) {
-        if (roiRect.width === 16 || roiRect.height === 16) return
-        roi.width = roi.height = 16
-    }
-    if (roi.width > 1024 || roi.height > 1024) {
-        if (roiRect.width === 1024 || roiRect.height === 1024) return
-        roi.width = roi.height = 1024
-    }
-    if (roi.x >= 0 && roi.y >= 0 && roi.x + roi.width < bgMat.cols && roi.y + roi.height < bgMat.rows) {
-        if (roiRect) {
-            display.delete()
-            bgRoi.delete()
-            edgeRoi.delete()
-            labelRoi.delete()
+    restrictRoi(roi)
+    if (roiRect) {
+        if (roi.x === roiRect.x && roi.y === roiRect.y && roi.width === roiRect.width && roi.height === roiRect.height) {
+            console.log("jerrr")
+            return
         }
-        display = new cv.Mat.zeros(roi.height, roi.width, bgMat.type())
-        bgRoi = bgMat.roi(roi)
-        edgeRoi = edgeMat.roi(roi)
-        labelRoi = labelMat.roi(roi)
-        roiRect = roi
+        display.delete()
+        bgRoi.delete()
+        edgeRoi.delete()
+        labelRoi.delete()
     }
+    display = new cv.Mat.zeros(roi.height, roi.width, bgMat.type())
+    bgRoi = bgMat.roi(roi)
+    edgeRoi = edgeMat.roi(roi)
+    labelRoi = labelMat.roi(roi)
+    roiRect = roi
 }

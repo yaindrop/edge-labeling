@@ -3,7 +3,7 @@ import { Radio, Button } from 'antd'
 import 'antd/dist/antd.css'
 
 import { srcUpdate, edgeUpdate, labelUpdate, displayUpdate, composeUpdate, DEFAULT_COMPOSE, roiUpdate } from './controller'
-import { edgeRoi, labelRoi, getVal, fallPos, selectTillBranch, fillSelect, needRepair, getRoi, outputLabel } from './model'
+import { edgeRoi, labelRoi, getVal, fallPos, selectTillBranch, fillSelect, needRepair, getRoi, outputLabel, RoiRange } from './model'
 import './App.css'
 
 type ActionMode = 0 | 1 | 2 | 3 | 4 | 5 | 6
@@ -151,47 +151,6 @@ export default function App() {
         }
     }, [])
 
-    const onImageLoad = useCallback((e: SyntheticEvent<HTMLImageElement, Event>) => {
-        srcUpdate.next(e.currentTarget)
-    }, [])
-
-    const onCanvasMouseEnter = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
-        displayUpdate.next((mat, util) => {
-            if (!isFocused) util.dimBy(mat, 48)
-        })
-    }, [isFocused])
-
-    const onCanvasMouseLeave = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
-        setMouseDown(false)
-        setMovePrevPos([-1, -1])
-        displayUpdate.next((mat, util) => {
-            if (!isFocused) util.dimBy(mat, 96)
-        })
-    }, [isFocused])
-
-    const onCanvasMouseMove = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
-        if (!isFocused) return
-        if (!getRoi()) return
-        const pos = getRoiPos(getRoi(), getRelPos(e.currentTarget, e))
-        if (pos.toString() === movePrevPos.toString()) return
-        doAction(pos)
-        setMovePrevPos(pos)
-    }, [isFocused, movePrevPos, doAction])
-
-    const onCanvasMouseDown = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
-        setMovePrevPos([-1, -1])
-        if (!isFocused) return
-        setMouseDown(true)
-        if (actionMode === NO_ACTION) return
-        if (!getRoi()) return
-        const pos = getRoiPos(getRoi(), getRelPos(e.currentTarget, e))
-        doAction(pos, true)
-    }, [isFocused, actionMode, doAction])
-
-    const onCanvasMouseUp = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
-        setMouseDown(false)
-    }, [])
-
     const setModes = useCallback((newCursorMode: CursorMode, newActionMode: ActionMode) => {
         if (cursorMode !== newCursorMode) {
             while (ValidCursorModes[newActionMode].indexOf(newCursorMode) < 0)
@@ -232,8 +191,52 @@ export default function App() {
         }
     }, [cursorMode, actionMode])
 
+    const onImageLoad = useCallback((e: SyntheticEvent<HTMLImageElement, Event>) => {
+        srcUpdate.next(e.currentTarget)
+    }, [])
+
+    const onCanvasMouseEnter = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
+        if (!getRoi()) return
+        displayUpdate.next((mat, util) => {
+            if (!isFocused) util.dimBy(mat, 48)
+        })
+    }, [isFocused])
+
+    const onCanvasMouseLeave = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
+        if (!getRoi()) return
+        setMouseDown(false)
+        setMovePrevPos([-1, -1])
+        displayUpdate.next((mat, util) => {
+            if (!isFocused) util.dimBy(mat, 96)
+        })
+    }, [isFocused])
+
+    const onCanvasMouseMove = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
+        if (!getRoi()) return
+        if (!isFocused) return
+        const pos = getRoiPos(getRoi(), getRelPos(e.currentTarget, e))
+        if (pos.toString() === movePrevPos.toString()) return
+        doAction(pos)
+        setMovePrevPos(pos)
+    }, [isFocused, movePrevPos, doAction])
+
+    const onCanvasMouseDown = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
+        if (!getRoi()) return
+        setMovePrevPos([-1, -1])
+        if (!isFocused) return
+        setMouseDown(true)
+        if (actionMode === NO_ACTION) return
+        const pos = getRoiPos(getRoi(), getRelPos(e.currentTarget, e))
+        doAction(pos, true)
+    }, [isFocused, actionMode, doAction])
+
+    const onCanvasMouseUp = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
+        if (!getRoi()) return
+        setMouseDown(false)
+    }, [])
 
     const onCanvasKeyPress = useCallback((e: KeyboardEvent<HTMLCanvasElement>) => {
+        if (!getRoi()) return
         setMovePrevPos([-1, -1])
         let newCursorMode: CursorMode = cursorMode, newActionMode: ActionMode = actionMode
         switch (e.key) {
@@ -272,10 +275,13 @@ export default function App() {
     }, [actionMode, cursorMode, undo, setModes, downloadLabel])
 
     const onCanvasFocus = useCallback(() => {
+        if (!getRoi()) return
         setFocused(true)
+        displayUpdate.next(() => { })
     }, [])
 
     const onCanvasBlur = useCallback(() => {
+        if (!getRoi()) return
         setFocused(false)
         setMouseDown(false)
         setMovePrevPos([-1, -1])
@@ -283,19 +289,21 @@ export default function App() {
     }, [])
 
     const onCanvasWheel = useCallback((e: WheelEvent<HTMLCanvasElement>) => {
+        if (!getRoi()) return
         if (actionMode !== MOVE_CANVAS) return
+        const roi = getRoi()
         e.preventDefault()
         const relPos = getRelPos(e.currentTarget, e)
-        const roi = getRoi()
         const oldPos = getRoiPos(roi, relPos)
-        console.log(oldPos)
         const newRoi = {
             ...roi,
-            width: roi.width - e.deltaY,
-            height: roi.height - e.deltaY,
+            width: e.deltaY > 0 ? Math.ceil(roi.width * 1.05) : Math.floor(roi.width * 0.95),
+            height: e.deltaY > 0 ? Math.ceil(roi.height * 1.05) : Math.floor(roi.height * 0.95),
         }
+        if (newRoi.width < RoiRange.width[0] || newRoi.width > RoiRange.width[1] ||
+            newRoi.height < RoiRange.height[0] || newRoi.height > RoiRange.height[1])
+            return
         const newPos = getRoiPos(newRoi, relPos)
-        console.log(newPos)
         roiUpdate.next({
             ...newRoi,
             x: roi.x + oldPos[1] - newPos[1],
