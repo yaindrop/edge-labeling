@@ -1,7 +1,7 @@
 import { Subject, BehaviorSubject } from 'rxjs'
 import { tap, filter } from 'rxjs/operators'
 
-import { edgeRoi, labelRoi, displayRoi, setVal, growValley, composeDisplay, dimBy, initMats, imshow, ComposeConfig } from './model'
+import { edgeRoi, labelRoi, display, imshow, setVal, growValley, composeDisplay, dimBy, initMats, setRoi, ComposeConfig } from './model'
 
 type MatUtil = {
     setVal: (mat: any, pos: number[], val: number[]) => void
@@ -10,17 +10,21 @@ type MatUtil = {
 
 type MatUpdate = (mat: any, util: MatUtil) => void
 
-export const srcUpdate = new Subject<HTMLImageElement>()
-export const edgeUpdate = new Subject<MatUpdate>()
-export const labelUpdate = new Subject<MatUpdate>()
-export const displayUpdate = new Subject<MatUpdate>()
 export const DEFAULT_COMPOSE = {
+    showEdge: true,
     showEdgeValley: false,
     labelColor: [255, 255, 0, 255],
     bgWeight: 1,
     edgeWeight: 0.4,
 }
+
 export const composeUpdate = new BehaviorSubject<ComposeConfig>(DEFAULT_COMPOSE)
+export const roiUpdate = new Subject<any>()
+
+export const srcUpdate = new Subject<HTMLImageElement>()
+export const edgeUpdate = new Subject<MatUpdate>()
+export const labelUpdate = new Subject<MatUpdate>()
+export const displayUpdate = new Subject<MatUpdate>()
 
 const MatUtilImpl: MatUtil = {
     setVal: setVal,
@@ -29,11 +33,21 @@ const MatUtilImpl: MatUtil = {
 
 composeUpdate
     .pipe(
-        filter(() => displayRoi),
+        filter(() => display),
     )
     .subscribe(() => {
-        composeDisplay(displayRoi, composeUpdate.value)
-        imshow(displayRoi)
+        composeDisplay(display, composeUpdate.value)
+        imshow(display)
+    })
+
+roiUpdate
+    .pipe(
+        tap(setRoi)
+    )
+    .subscribe(() => {
+        growValley(edgeRoi)
+        composeDisplay(display, composeUpdate.value)
+        imshow(display)
     })
 
 srcUpdate
@@ -51,8 +65,8 @@ edgeUpdate
     )
     .subscribe(() => {
         growValley(edgeRoi)
-        composeDisplay(displayRoi, composeUpdate.value)
-        imshow(displayRoi)
+        composeDisplay(display, composeUpdate.value)
+        imshow(display)
     })
 
 labelUpdate
@@ -61,16 +75,16 @@ labelUpdate
         tap(update => update(labelRoi, MatUtilImpl))
     )
     .subscribe(() => {
-        composeDisplay(displayRoi, composeUpdate.value)
-        imshow(displayRoi)
+        composeDisplay(display, composeUpdate.value)
+        imshow(display)
     })
 
 displayUpdate
     .pipe(
-        filter(() => displayRoi),
-        tap(() => composeDisplay(displayRoi, composeUpdate.value)),
-        tap(update => update(displayRoi, MatUtilImpl))
+        filter(() => display),
+        tap(() => composeDisplay(display, composeUpdate.value)),
+        tap(update => update(display, MatUtilImpl))
     )
     .subscribe(() => {
-        imshow(displayRoi)
+        imshow(display)
     })

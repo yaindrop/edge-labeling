@@ -3,23 +3,23 @@ declare const cv: any
 var bgMat: any
 var edgeMat: any
 var labelMat: any
-var displayMat: any
 
-export var roiRect: any
+var roiRect: any
 
 var bgRoi: any
 export var edgeRoi: any
 export var labelRoi: any
-export var displayRoi: any
+export var display: any
 
 export type ComposeConfig = {
+    showEdge: boolean,
     showEdgeValley: boolean,
     labelColor: number[],
     bgWeight: number,
     edgeWeight: number,
 }
 
-const Pos = {
+export const Pos = {
     dist: (v1: number[], v2: number[]) => Math.sqrt(Math.pow(v1[0] - v2[0], 2) + Math.pow(v1[1] - v2[1], 2)),
     add: (v1: number[], v2: number[]) => [v1[0] + v2[0], v1[1] + v2[1]],
     sub: (v1: number[], v2: number[]) => [v1[0] - v2[0], v1[1] - v2[1]],
@@ -109,6 +109,8 @@ export const needRepair = (mat: any[], pos: number[]) => {
 }
 
 export const fillSelect = (mats: any[], pos: number[]) => {
+    const hitWall = (p: number[]) => mats.filter(mat => getVal(mat, p) === 255).length > 0
+    if (hitWall(pos)) return []
     const res: number[][] = []
     const stack: number[][] = []
     const visited: { [p: string]: boolean } = {}
@@ -118,7 +120,7 @@ export const fillSelect = (mats: any[], pos: number[]) => {
         if (visited[curPos.toString()]) continue
         visited[curPos.toString()] = true
         res.push(curPos)
-        const nonEdgeNbrs = Pos.closeNbrs(curPos).filter(p => !(mats.filter(mat => getVal(mat, p) === 255).length))
+        const nonEdgeNbrs = Pos.closeNbrs(curPos).filter(p => !hitWall(p))
         nonEdgeNbrs.filter(p => !visited[p.toString()]).forEach(p => stack.push(p))
         if (res.length > 1000) break
     }
@@ -139,26 +141,29 @@ export const dimBy = (mat: any, amount: number) => {
 }
 
 export const composeDisplay = (display: any, config: ComposeConfig) => {
-    const edgeCvted = new cv.Mat.zeros(edgeRoi.rows, edgeRoi.cols, edgeRoi.type())
-    if (config.showEdgeValley) {
-        cv.add(edgeRoi, edgeCvted, edgeCvted)
-    } else {
-        cv.threshold(edgeRoi, edgeCvted, 254, 255, cv.THRESH_BINARY)
+    bgRoi.copyTo(display)
+
+    if (config.showEdge) {
+        const edgeCvted = new cv.Mat.zeros(edgeRoi.rows, edgeRoi.cols, edgeRoi.type())
+        if (config.showEdgeValley) {
+            cv.add(edgeRoi, edgeCvted, edgeCvted)
+        } else {
+            cv.threshold(edgeRoi, edgeCvted, 254, 255, cv.THRESH_BINARY)
+        }
+        cv.cvtColor(edgeCvted, edgeCvted, cv.COLOR_GRAY2RGBA)
+        cv.addWeighted(display, config.bgWeight, edgeCvted, config.edgeWeight, 0.0, display)
+        edgeCvted.delete()
     }
-    cv.cvtColor(edgeCvted, edgeCvted, cv.COLOR_GRAY2RGBA)
+
     const labelThresed = new cv.Mat()
     cv.threshold(labelRoi, labelThresed, 254, 255, cv.THRESH_BINARY)
     const labelCvted = new cv.Mat()
     cv.cvtColor(labelThresed, labelCvted, cv.COLOR_GRAY2RGBA)
     const labelColorInv = new cv.Mat(labelCvted.rows, labelCvted.cols, labelCvted.type(), config.labelColor.map(c => 255 - c))
     cv.subtract(labelCvted, labelColorInv, labelCvted, labelThresed)
-
-    cv.add(bgRoi, labelCvted, display)
-    cv.addWeighted(display, config.bgWeight, edgeCvted, config.edgeWeight, 0.0, display)
     cv.add(display, labelCvted, display)
     cv.subtract(display, labelColorInv, display, labelThresed)
 
-    edgeCvted.delete()
     labelThresed.delete()
     labelCvted.delete()
     labelColorInv.delete()
@@ -179,18 +184,29 @@ export const growValley = (mat: any) => {
 export const initMats = (src: HTMLImageElement) => {
     bgMat = cv.imread(src)
     edgeMat = new cv.Mat()
-    displayMat = new cv.Mat(bgMat.rows, bgMat.cols, bgMat.type())
     cv.cvtColor(bgMat, edgeMat, cv.COLOR_RGB2GRAY, 0)
     cv.Canny(edgeMat, edgeMat, 50, 100, 3, false)
     labelMat = new cv.Mat.zeros(edgeMat.rows, edgeMat.cols, edgeMat.type())
-    roiRect = new cv.Rect(550, 450, 500, 500);
-    setRoi()
+    setRoi({ x: 550, y: 450, width: 500, height: 500 })
     growValley(edgeRoi)
 }
 
-const setRoi = () => {
-    bgRoi = bgMat.roi(roiRect)
-    edgeRoi = edgeMat.roi(roiRect)
-    labelRoi = labelMat.roi(roiRect)
-    displayRoi = displayMat.roi(roiRect)
+export const getRoi = () => {
+    return { ...roiRect }
+}
+
+export const setRoi = (roi: any) => {
+    if (roi.x >= 0 && roi.y >= 0 && roi.x + roi.width < bgMat.cols && roi.y + roi.height < bgMat.rows) {
+        if (roiRect) {
+            display.delete()
+            bgRoi.delete()
+            edgeRoi.delete()
+            labelRoi.delete()
+        }
+        display = new cv.Mat(roi.height, roi.width, bgMat.type())
+        bgRoi = bgMat.roi(roi)
+        edgeRoi = edgeMat.roi(roi)
+        labelRoi = labelMat.roi(roi)
+        roiRect = roi
+    }
 }

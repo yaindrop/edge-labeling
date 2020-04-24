@@ -1,35 +1,39 @@
 import React, { useRef, SyntheticEvent, MouseEvent, KeyboardEvent, useState, useCallback } from 'react'
-import { Radio, Button, Slider } from 'antd'
+import { Radio, Button } from 'antd'
 import 'antd/dist/antd.css'
 
-import { srcUpdate, edgeUpdate, labelUpdate, displayUpdate, composeUpdate, DEFAULT_COMPOSE } from './controller'
-import { roiRect, edgeRoi, labelRoi, getVal, fallPos, selectTillBranch, fillSelect, needRepair } from './model'
+import { srcUpdate, edgeUpdate, labelUpdate, displayUpdate, composeUpdate, DEFAULT_COMPOSE, roiUpdate } from './controller'
+import { edgeRoi, labelRoi, getVal, fallPos, selectTillBranch, fillSelect, needRepair, getRoi } from './model'
 import './App.css'
 
-type ActionMode = 0 | 1 | 2 | 3 | 4
+type ActionMode = 0 | 1 | 2 | 3 | 4 | 5
 const NO_ACTION: ActionMode = 0
 const WIPE_EDGE: ActionMode = 1
 const DRAW_EDGE: ActionMode = 2
 const REPAIR_EDGE: ActionMode = 3
 const FILL_LABEL: ActionMode = 4
+const MOVE_CANVAS: ActionMode = 5
 
-type CursorMode = 0 | 1 | 2
-const FALLING = 0
-const ADHERE = 1
-const FLOATING = 2
+type CursorMode = 0 | 1 | 2 | 3
+const DISABLED = 0
+const FALLING = 1
+const ADHERE = 2
+const FLOATING = 3
 
 const ValidCursorModes = {
     0: [FALLING, ADHERE, FLOATING],
-    2: [FALLING, FLOATING],
-    1: [ADHERE, FLOATING],
+    1: [FALLING, FLOATING],
+    2: [ADHERE, FLOATING],
     3: [FLOATING],
     4: [FLOATING],
+    5: [DISABLED]
 }
 
 const CursorColors = {
-    0: [0, 255, 255, 255],
-    1: [255, 0, 255, 255],
-    2: [255, 0, 0, 255],
+    0: [0, 0, 0, 0],
+    1: [0, 255, 255, 255],
+    2: [255, 0, 255, 255],
+    3: [255, 0, 0, 255],
 }
 
 type EditHistory = {
@@ -59,6 +63,9 @@ export default function App() {
     const doAction = useCallback((pos: number[], pressed = false) => {
         let targets: number[][]
         switch (cursorMode) {
+            case DISABLED:
+                targets = []
+                break
             case FLOATING:
                 targets = [pos]
                 break
@@ -68,8 +75,17 @@ export default function App() {
             case ADHERE:
                 targets = [fallPos(edgeRoi, pos, true)].filter(p => getVal(edgeRoi, p))
         }
-        if (actionMode === NO_ACTION || !(isMouseDown || pressed)) {
-            //if (!targets.length) targets = [pos]
+        if (actionMode === MOVE_CANVAS) {
+            if (!isMouseDown) return
+            const roi = getRoi()
+            roiUpdate.next({
+                x: roi.x + movePrevPos[1] - pos[1],
+                y: roi.y + movePrevPos[0] - pos[0],
+                width: 500,
+                height: 500
+            })
+            hist.push({ action: MOVE_CANVAS, targets: [movePrevPos, pos] })
+        } else if (actionMode === NO_ACTION || !(isMouseDown || pressed)) {
             displayUpdate.next((mat, util) => targets.forEach(p =>
                 util.setVal(mat, p, CursorColors[cursorMode]))
             )
@@ -99,7 +115,7 @@ export default function App() {
             if (!targets.length) return
             hist.push({ action: actionMode, targets: targets })
         }
-    }, [actionMode, cursorMode, isMouseDown])
+    }, [actionMode, cursorMode, isMouseDown, movePrevPos])
 
     const undo = useCallback((h: EditHistory) => {
         switch (h.action) {
@@ -115,6 +131,14 @@ export default function App() {
             case FILL_LABEL:
                 labelUpdate.next((mat, util) => h.targets.forEach(p => util.setVal(mat, p, [0])))
                 break
+            case MOVE_CANVAS:
+                const roi = getRoi()
+                roiUpdate.next({
+                    x: roi.x + h.targets[1][1] - h.targets[0][1],
+                    y: roi.y + h.targets[1][0] - h.targets[0][0],
+                    width: 500,
+                    height: 500
+                })
         }
     }, [])
 
@@ -136,19 +160,19 @@ export default function App() {
 
     const onCanvasMouseMove = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
         if (!isFocused) return
-        if (!roiRect) return
-        const pos = getRoiPos(roiRect, getRelPos(e.currentTarget, e))
+        if (!getRoi()) return
+        const pos = getRoiPos(getRoi(), getRelPos(e.currentTarget, e))
         if (pos.toString() === movePrevPos.toString()) return
-        setMovePrevPos(pos)
         doAction(pos)
+        setMovePrevPos(pos)
     }, [isFocused, movePrevPos, doAction])
 
     const onCanvasMouseDown = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
         if (!isFocused) return
         setMouseDown(true)
         if (actionMode === NO_ACTION) return
-        if (!roiRect) return
-        const pos = getRoiPos(roiRect, getRelPos(e.currentTarget, e))
+        if (!getRoi()) return
+        const pos = getRoiPos(getRoi(), getRelPos(e.currentTarget, e))
         doAction(pos, true)
     }, [isFocused, actionMode, doAction])
 
@@ -181,7 +205,12 @@ export default function App() {
                     setCursorMode(FLOATING)
                     composeUpdate.next({ ...DEFAULT_COMPOSE, bgWeight: 0.6 })
                     break
+                case MOVE_CANVAS:
+                    setCursorMode(DISABLED)
+                    composeUpdate.next(DEFAULT_COMPOSE)
+                    break
                 default:
+                    setCursorMode(FALLING)
                     composeUpdate.next(DEFAULT_COMPOSE)
             }
         }
@@ -210,6 +239,9 @@ export default function App() {
             case "d":
                 newActionMode = FILL_LABEL
                 break
+            case "m":
+                newActionMode = MOVE_CANVAS
+                break
             default:
                 newActionMode = NO_ACTION
         }
@@ -235,26 +267,28 @@ export default function App() {
             </div>
             <div className="radio">
                 <span>Action: </span>
-                <Radio.Group value={actionMode} onChange={(e) => setModes(cursorMode, e.target.value)}>
+                <Radio.Group value={actionMode} onChange={(e) => setModes(cursorMode, e.target.value)} disabled={!getRoi()}>
                     <Radio.Button value={NO_ACTION}>No Action</Radio.Button>
                     <Radio.Button value={WIPE_EDGE}>Wipe Edge (W)</Radio.Button>
                     <Radio.Button value={DRAW_EDGE}>Draw Edge (E)</Radio.Button>
                     <Radio.Button value={REPAIR_EDGE}>Repair Edge (R)</Radio.Button>
                     <Radio.Button value={FILL_LABEL}>Fill Label (D)</Radio.Button>
+                    <Radio.Button value={MOVE_CANVAS}>Move Canvas (M)</Radio.Button>
                 </Radio.Group>
             </div>
             <div className="radio">
                 <span>Cursor (F): </span>
-                <Radio.Group value={cursorMode} onChange={(e) => setModes(e.target.value, actionMode)}>
+                <Radio.Group value={cursorMode} onChange={(e) => setModes(e.target.value, actionMode)} disabled={!getRoi()}>
                     <Radio.Button value={FALLING} disabled={ValidCursorModes[actionMode].indexOf(FALLING) < 0}>Fall to Edge</Radio.Button>
                     <Radio.Button value={ADHERE} disabled={ValidCursorModes[actionMode].indexOf(ADHERE) < 0}>Adhere to Edge</Radio.Button>
                     <Radio.Button value={FLOATING} disabled={ValidCursorModes[actionMode].indexOf(FLOATING) < 0}>Floating</Radio.Button>
                 </Radio.Group>
-                <Button className="undo" type="danger" ghost onClick={() => { if (hist.length) undo(hist.pop()!) }}>Undo (Z)</Button>
+                <Button className="undo" type="danger" ghost onClick={() => { if (hist.length) undo(hist.pop()!) }} disabled={!getRoi()}>Undo (Z)</Button>
             </div>
             <div className="canvas">
                 <canvas
                     id="canvas"
+                    className={actionMode === MOVE_CANVAS ? "moving" : ""}
                     onMouseEnter={onCanvasMouseEnter}
                     onMouseLeave={onCanvasMouseLeave}
                     onMouseMove={onCanvasMouseMove}

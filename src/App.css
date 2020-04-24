@@ -30,3 +30,7 @@
 .radio, .undo {
     margin: 6px;
 }
+
+.moving {
+    cursor: move !important;
+}
