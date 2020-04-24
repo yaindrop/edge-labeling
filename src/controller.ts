@@ -10,12 +10,15 @@ type MatUtil = {
 
 type MatUpdate = (mat: any, util: MatUtil) => void
 
-export const DEFAULT_COMPOSE = {
+export const DEFAULT_COMPOSE: ComposeConfig = {
+    showBg: true,
+    bgWeight: 1,
     showEdge: true,
     showEdgeValley: false,
-    labelColor: [255, 255, 0, 255],
-    bgWeight: 1,
     edgeWeight: 0.4,
+    showLabel: true,
+    labelColor: [255, 255, 0, 255],
+    labelWeight: 0.8,
 }
 
 export const composeUpdate = new BehaviorSubject<ComposeConfig>(DEFAULT_COMPOSE)

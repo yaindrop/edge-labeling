@@ -12,11 +12,14 @@ export var labelRoi: any
 export var display: any
 
 export type ComposeConfig = {
+    showBg: boolean
+    bgWeight: number,
     showEdge: boolean,
     showEdgeValley: boolean,
-    labelColor: number[],
-    bgWeight: number,
     edgeWeight: number,
+    showLabel: boolean,
+    labelColor: number[],
+    labelWeight: number,
 }
 
 export const Pos = {
@@ -141,32 +144,32 @@ export const dimBy = (mat: any, amount: number) => {
 }
 
 export const composeDisplay = (display: any, config: ComposeConfig) => {
-    bgRoi.copyTo(display)
-
+    const blank = new cv.Mat.zeros(roiRect.height, roiRect.width, bgMat.type())
+    blank.copyTo(display)
+    if (config.showBg) cv.addWeighted(display, 1, bgRoi, config.bgWeight, 0.0, display)
     if (config.showEdge) {
-        const edgeCvted = new cv.Mat.zeros(edgeRoi.rows, edgeRoi.cols, edgeRoi.type())
+        const edgeCvted = new cv.Mat.zeros(roiRect.height, roiRect.width, edgeRoi.type())
         if (config.showEdgeValley) {
             cv.add(edgeRoi, edgeCvted, edgeCvted)
         } else {
             cv.threshold(edgeRoi, edgeCvted, 254, 255, cv.THRESH_BINARY)
         }
         cv.cvtColor(edgeCvted, edgeCvted, cv.COLOR_GRAY2RGBA)
-        cv.addWeighted(display, config.bgWeight, edgeCvted, config.edgeWeight, 0.0, display)
+        cv.addWeighted(display, 1, edgeCvted, config.edgeWeight, 0.0, display)
         edgeCvted.delete()
     }
-
-    const labelThresed = new cv.Mat()
-    cv.threshold(labelRoi, labelThresed, 254, 255, cv.THRESH_BINARY)
-    const labelCvted = new cv.Mat()
-    cv.cvtColor(labelThresed, labelCvted, cv.COLOR_GRAY2RGBA)
-    const labelColorInv = new cv.Mat(labelCvted.rows, labelCvted.cols, labelCvted.type(), config.labelColor.map(c => 255 - c))
-    cv.subtract(labelCvted, labelColorInv, labelCvted, labelThresed)
-    cv.add(display, labelCvted, display)
-    cv.subtract(display, labelColorInv, display, labelThresed)
-
-    labelThresed.delete()
-    labelCvted.delete()
-    labelColorInv.delete()
+    if (config.showLabel) {
+        const labelThresed = new cv.Mat()
+        cv.threshold(labelRoi, labelThresed, 254, 255, cv.THRESH_BINARY)
+        const labelCvted = new cv.Mat()
+        cv.cvtColor(labelThresed, labelCvted, cv.COLOR_GRAY2RGBA)
+        const labelColorInv = new cv.Mat(labelCvted.rows, labelCvted.cols, labelCvted.type(), config.labelColor.map(c => 255 - c))
+        cv.addWeighted(display, 1, labelCvted, config.labelWeight, 0.0, display)
+        cv.subtract(display, labelColorInv, display, labelThresed)
+        labelThresed.delete()
+        labelCvted.delete()
+        labelColorInv.delete()
+    }
 }
 
 export const growValley = (mat: any) => {
@@ -191,11 +194,17 @@ export const initMats = (src: HTMLImageElement) => {
     growValley(edgeRoi)
 }
 
-export const getRoi = () => {
-    return { ...roiRect }
-}
+export const getRoi = () => roiRect ? { ...roiRect } : undefined
 
 export const setRoi = (roi: any) => {
+    if (roi.width < 16 || roi.height < 16) {
+        if (roiRect.width === 16 || roiRect.height === 16) return
+        roi.width = roi.height = 16
+    }
+    if (roi.width > 1024 || roi.height > 1024) {
+        if (roiRect.width === 1024 || roiRect.height === 1024) return
+        roi.width = roi.height = 1024
+    }
     if (roi.x >= 0 && roi.y >= 0 && roi.x + roi.width < bgMat.cols && roi.y + roi.height < bgMat.rows) {
         if (roiRect) {
             display.delete()
@@ -203,7 +212,7 @@ export const setRoi = (roi: any) => {
             edgeRoi.delete()
             labelRoi.delete()
         }
-        display = new cv.Mat(roi.height, roi.width, bgMat.type())
+        display = new cv.Mat.zeros(roi.height, roi.width, bgMat.type())
         bgRoi = bgMat.roi(roi)
         edgeRoi = edgeMat.roi(roi)
         labelRoi = labelMat.roi(roi)

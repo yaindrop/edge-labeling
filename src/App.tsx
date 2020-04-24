@@ -1,4 +1,4 @@
-import React, { useRef, SyntheticEvent, MouseEvent, KeyboardEvent, useState, useCallback } from 'react'
+import React, { useRef, SyntheticEvent, MouseEvent, KeyboardEvent, WheelEvent, useState, useCallback } from 'react'
 import { Radio, Button } from 'antd'
 import 'antd/dist/antd.css'
 
@@ -6,13 +6,14 @@ import { srcUpdate, edgeUpdate, labelUpdate, displayUpdate, composeUpdate, DEFAU
 import { edgeRoi, labelRoi, getVal, fallPos, selectTillBranch, fillSelect, needRepair, getRoi } from './model'
 import './App.css'
 
-type ActionMode = 0 | 1 | 2 | 3 | 4 | 5
+type ActionMode = 0 | 1 | 2 | 3 | 4 | 5 | 6
 const NO_ACTION: ActionMode = 0
 const WIPE_EDGE: ActionMode = 1
 const DRAW_EDGE: ActionMode = 2
 const REPAIR_EDGE: ActionMode = 3
 const FILL_LABEL: ActionMode = 4
-const MOVE_CANVAS: ActionMode = 5
+const SAVE_LABEL: ActionMode = 5
+const MOVE_CANVAS: ActionMode = 6
 
 type CursorMode = 0 | 1 | 2 | 3
 const DISABLED = 0
@@ -26,7 +27,8 @@ const ValidCursorModes = {
     2: [ADHERE, FLOATING],
     3: [FLOATING],
     4: [FLOATING],
-    5: [DISABLED]
+    5: [DISABLED],
+    6: [DISABLED],
 }
 
 const CursorColors = {
@@ -79,10 +81,9 @@ export default function App() {
             if (!isMouseDown) return
             const roi = getRoi()
             roiUpdate.next({
+                ...roi,
                 x: roi.x + movePrevPos[1] - pos[1],
                 y: roi.y + movePrevPos[0] - pos[0],
-                width: 500,
-                height: 500
             })
             hist.push({ action: MOVE_CANVAS, targets: [movePrevPos, pos] })
         } else if (actionMode === NO_ACTION || !(isMouseDown || pressed)) {
@@ -134,10 +135,9 @@ export default function App() {
             case MOVE_CANVAS:
                 const roi = getRoi()
                 roiUpdate.next({
+                    ...roi,
                     x: roi.x + h.targets[1][1] - h.targets[0][1],
                     y: roi.y + h.targets[1][0] - h.targets[0][0],
-                    width: 500,
-                    height: 500
                 })
         }
     }, [])
@@ -168,6 +168,7 @@ export default function App() {
     }, [isFocused, movePrevPos, doAction])
 
     const onCanvasMouseDown = useCallback((e: MouseEvent<HTMLCanvasElement>) => {
+        setMovePrevPos([-1, -1])
         if (!isFocused) return
         setMouseDown(true)
         if (actionMode === NO_ACTION) return
@@ -205,6 +206,10 @@ export default function App() {
                     setCursorMode(FLOATING)
                     composeUpdate.next({ ...DEFAULT_COMPOSE, bgWeight: 0.6 })
                     break
+                case SAVE_LABEL:
+                    setCursorMode(DISABLED)
+                    composeUpdate.next({ ...DEFAULT_COMPOSE, showBg: false, showEdge: false, labelWeight: 1 })
+                    break
                 case MOVE_CANVAS:
                     setCursorMode(DISABLED)
                     composeUpdate.next(DEFAULT_COMPOSE)
@@ -239,6 +244,9 @@ export default function App() {
             case "d":
                 newActionMode = FILL_LABEL
                 break
+            case "s":
+                newActionMode = SAVE_LABEL
+                break
             case "m":
                 newActionMode = MOVE_CANVAS
                 break
@@ -257,6 +265,27 @@ export default function App() {
         displayUpdate.next((mat, util) => util.dimBy(mat, 96))
     }, [])
 
+    const onCanvasWheel = useCallback((e: WheelEvent<HTMLCanvasElement>) => {
+        if (actionMode !== MOVE_CANVAS) return
+        e.preventDefault()
+        const relPos = getRelPos(e.currentTarget, e)
+        const roi = getRoi()
+        const oldPos = getRoiPos(roi, relPos)
+        console.log(oldPos)
+        const newRoi = {
+            ...roi,
+            width: roi.width - e.deltaY,
+            height: roi.height - e.deltaY,
+        }
+        const newPos = getRoiPos(newRoi, relPos)
+        console.log(newPos)
+        roiUpdate.next({
+            ...newRoi,
+            x: roi.x + oldPos[1] - newPos[1],
+            y: roi.y + oldPos[0] - newPos[0],
+        })
+    }, [actionMode])
+
     return (
         <div className="App">
             <div className="input">
@@ -273,6 +302,7 @@ export default function App() {
                     <Radio.Button value={DRAW_EDGE}>Draw Edge (E)</Radio.Button>
                     <Radio.Button value={REPAIR_EDGE}>Repair Edge (R)</Radio.Button>
                     <Radio.Button value={FILL_LABEL}>Fill Label (D)</Radio.Button>
+                    <Radio.Button value={SAVE_LABEL}>Save Label (S)</Radio.Button>
                     <Radio.Button value={MOVE_CANVAS}>Move Canvas (M)</Radio.Button>
                 </Radio.Group>
             </div>
@@ -297,6 +327,7 @@ export default function App() {
                     onKeyPress={onCanvasKeyPress}
                     onFocus={onCanvasFocus}
                     onBlur={onCanvasBlur}
+                    onWheel={onCanvasWheel}
                     tabIndex={1000}
                 />
             </div>
