@@ -154,7 +154,7 @@ export default function App() {
     const setModes = useCallback((newCursorMode: CursorMode, newActionMode: ActionMode) => {
         if (cursorMode !== newCursorMode) {
             while (ValidCursorModes[newActionMode].indexOf(newCursorMode) < 0)
-                newCursorMode = (newCursorMode + 1) % 3 as CursorMode
+                newCursorMode = (newCursorMode + 1) % 4 as CursorMode
             setCursorMode(newCursorMode)
         }
         if (actionMode !== newActionMode) {
@@ -241,7 +241,7 @@ export default function App() {
         let newCursorMode: CursorMode = cursorMode, newActionMode: ActionMode = actionMode
         switch (e.key) {
             case "f":
-                newCursorMode = (cursorMode + 1) % 3 as CursorMode
+                newCursorMode = (cursorMode + 1) % 4 as CursorMode
                 break
             case "z":
                 if (hist.length) undo(hist.pop()!)
