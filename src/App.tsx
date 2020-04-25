@@ -103,7 +103,7 @@ export default function App() {
             if (!targets.length) return
             switch (actionMode) {
                 case WIPE_EDGE:
-                    targets = targets.filter(p => getVal(edgeRoi, p))
+                    targets = targets.filter(p => getVal(edgeRoi, p) === 255)
                     edgeUpdate.next((mat, util) => targets.forEach(p => util.setVal(mat, p, [0])))
                     break
                 case DRAW_EDGE:
