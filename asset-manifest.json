@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/edge-labeling/static/css/main.4ae5aa79.chunk.css",
-    "main.js": "/edge-labeling/static/js/main.2c7115b6.chunk.js",
-    "main.js.map": "/edge-labeling/static/js/main.2c7115b6.chunk.js.map",
+    "main.js": "/edge-labeling/static/js/main.5f0f9035.chunk.js",
+    "main.js.map": "/edge-labeling/static/js/main.5f0f9035.chunk.js.map",
     "runtime-main.js": "/edge-labeling/static/js/runtime-main.84658c42.js",
     "runtime-main.js.map": "/edge-labeling/static/js/runtime-main.84658c42.js.map",
     "static/css/2.a72c35d3.chunk.css": "/edge-labeling/static/css/2.a72c35d3.chunk.css",
     "static/js/2.a8632d16.chunk.js": "/edge-labeling/static/js/2.a8632d16.chunk.js",
     "static/js/2.a8632d16.chunk.js.map": "/edge-labeling/static/js/2.a8632d16.chunk.js.map",
     "index.html": "/edge-labeling/index.html",
-    "precache-manifest.144e316bb054d45bcb47d60a26c05933.js": "/edge-labeling/precache-manifest.144e316bb054d45bcb47d60a26c05933.js",
+    "precache-manifest.032938920fac9f9e0ac2659ed9c35f40.js": "/edge-labeling/precache-manifest.032938920fac9f9e0ac2659ed9c35f40.js",
     "service-worker.js": "/edge-labeling/service-worker.js",
     "static/css/2.a72c35d3.chunk.css.map": "/edge-labeling/static/css/2.a72c35d3.chunk.css.map",
     "static/css/main.4ae5aa79.chunk.css.map": "/edge-labeling/static/css/main.4ae5aa79.chunk.css.map",
@@ -20,6 +20,6 @@
     "static/css/2.a72c35d3.chunk.css",
     "static/js/2.a8632d16.chunk.js",
     "static/css/main.4ae5aa79.chunk.css",
-    "static/js/main.2c7115b6.chunk.js"
+    "static/js/main.5f0f9035.chunk.js"
   ]
 }
