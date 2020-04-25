@@ -2,8 +2,8 @@ import React, { useRef, SyntheticEvent, MouseEvent, KeyboardEvent, WheelEvent, u
 import { Radio, Button, Switch, Col, Row, Slider } from 'antd'
 import 'antd/dist/antd.css'
 
-import { srcUpdate, edgeUpdate, labelUpdate, displayUpdate, composeUpdate, roiUpdate, composeStore, roiStore, RoiRange, DEFAULT_COMPOSE, undo } from './controller'
-import { edgeRoi, labelRoi, getVal, fallPos, selectTillBranch, fillSelect, needRepair } from './model'
+import { srcUpdate, edgeUpdate, labelUpdate, displayUpdate, roiUpdate, composeUpdate, initedStore, roiStore, composeStore, DEFAULT_COMPOSE, undo } from './controller'
+import { edgeRoi, labelRoi, getVal, fallPos, selectTillBranch, fillSelect, needRepair, deleteMats } from './model'
 import './App.css'
 
 type ActionMode = 0 | 1 | 2 | 3 | 4
@@ -61,16 +61,20 @@ export default function App() {
     const [movePrevPos, setMovePrevPos] = useState([-1, -1])
     const [isMovingCanvas, setMovingCanvas] = useState(false)
     const [roi, setRoi] = useState(roiStore.value)
+    const [inited, setInited] = useState(initedStore.value)
     const [composeConfig, setComposeConfig] = useState(composeStore.value)
     const imageSrc = useRef<HTMLImageElement>(null)
     const labelOutput = useRef<HTMLCanvasElement>(null)
-    const inited = roi && true
 
     useEffect(() => {
+        window.addEventListener("beforeunload", deleteMats);
         const roiSub = roiStore.subscribe(setRoi)
+        const initedSub = initedStore.subscribe(setInited)
         const composeSub = composeStore.subscribe(setComposeConfig)
         return () => {
+            window.removeEventListener("beforeunload", deleteMats);
             roiSub.unsubscribe()
+            initedSub.unsubscribe()
             composeSub.unsubscribe()
         }
     }, [])
@@ -85,11 +89,12 @@ export default function App() {
     const doAction = useCallback((pos: number[], pressed = false) => {
         if (isMovingCanvas) {
             if (!isMouseDown || movePrevPos[0] === -1) return
-            console.log(roi)
             roiUpdate.next({
-                ...roi,
-                x: roi.x + movePrevPos[1] - pos[1],
-                y: roi.y + movePrevPos[0] - pos[0],
+                roi: {
+                    ...roi,
+                    x: roi.x + movePrevPos[1] - pos[1],
+                    y: roi.y + movePrevPos[0] - pos[0],
+                }
             })
         } else {
             let targets: number[][]
@@ -264,14 +269,14 @@ export default function App() {
             width: e.deltaY > 0 ? Math.ceil(roi.width * 1.05) : Math.floor(roi.width * 0.95),
             height: e.deltaY > 0 ? Math.ceil(roi.height * 1.05) : Math.floor(roi.height * 0.95),
         }
-        if (newRoi.width < RoiRange.width[0] || newRoi.width > RoiRange.width[1] ||
-            newRoi.height < RoiRange.height[0] || newRoi.height > RoiRange.height[1])
-            return
         const newPos = getRoiPos(newRoi, relPos)
         roiUpdate.next({
-            ...newRoi,
-            x: roi.x + oldPos[1] - newPos[1],
-            y: roi.y + oldPos[0] - newPos[0],
+            isResize: true,
+            roi: {
+                ...newRoi,
+                x: roi.x + oldPos[1] - newPos[1],
+                y: roi.y + oldPos[0] - newPos[0],
+            }
         })
     }, [inited, roi, isMovingCanvas])
 
@@ -325,7 +330,7 @@ export default function App() {
                     checked={composeConfig.showBg}
                     unCheckedChildren={"Background"}
                     checkedChildren={"Background"}
-                    onClick={() => composeUpdate.next({ ...composeConfig, showBg: !composeConfig.showBg })}
+                    onClick={() => composeUpdate.next({ showBg: !composeConfig.showBg })}
                 />
                 <Slider
                     disabled={!inited}
@@ -333,7 +338,7 @@ export default function App() {
                     max={1}
                     step={0.1}
                     value={composeConfig.bgWeight}
-                    onChange={(e) => composeUpdate.next({ ...composeConfig, bgWeight: e as number })}
+                    onChange={(e) => composeUpdate.next({ bgWeight: e as number })}
                 />
             </Col>
             <Col span={3} offset={1}>
@@ -344,7 +349,7 @@ export default function App() {
                             checked={composeConfig.showEdge}
                             unCheckedChildren={"Edge"}
                             checkedChildren={"Edge"}
-                            onClick={() => composeUpdate.next({ ...composeConfig, showEdge: !composeConfig.showEdge })}
+                            onClick={() => composeUpdate.next({ showEdge: !composeConfig.showEdge })}
                         />
                     </Col>
                     <Col span={12}>
@@ -353,7 +358,7 @@ export default function App() {
                             checked={composeConfig.showEdgeValley && composeConfig.showEdge}
                             unCheckedChildren={"Valley"}
                             checkedChildren={"Valley"}
-                            onClick={() => composeUpdate.next({ ...composeConfig, showEdgeValley: !composeConfig.showEdgeValley })}
+                            onClick={() => composeUpdate.next({ showEdgeValley: !composeConfig.showEdgeValley })}
                         />
                     </Col>
                 </Row>
@@ -363,7 +368,7 @@ export default function App() {
                     max={1}
                     step={0.1}
                     value={composeConfig.edgeWeight}
-                    onChange={(e) => composeUpdate.next({ ...composeConfig, edgeWeight: e as number })}
+                    onChange={(e) => composeUpdate.next({ edgeWeight: e as number })}
                 />
             </Col>
             <Col span={3} offset={1}>
@@ -372,7 +377,7 @@ export default function App() {
                     checked={composeConfig.showLabel}
                     unCheckedChildren={"Label"}
                     checkedChildren={"Label"}
-                    onClick={() => composeUpdate.next({ ...composeConfig, showLabel: !composeConfig.showLabel })}
+                    onClick={() => composeUpdate.next({ showLabel: !composeConfig.showLabel })}
                 />
                 <Slider
                     disabled={!inited}
@@ -380,7 +385,7 @@ export default function App() {
                     max={1}
                     step={0.1}
                     value={composeConfig.labelWeight}
-                    onChange={(e) => composeUpdate.next({ ...composeConfig, labelWeight: e as number })}
+                    onChange={(e) => composeUpdate.next({ labelWeight: e as number })}
                 />
             </Col>
         </Row>

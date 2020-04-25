@@ -142,9 +142,7 @@ export const dimBy = (mat: any, amount: number) => {
 }
 
 export const composeDisplay = (display: any, config: ComposeConfig) => {
-    const blank = new cv.Mat.zeros(bgRoi.rows, bgRoi.cols, bgMat.type())
-    blank.copyTo(display)
-    blank.delete()
+    display.setTo([0, 0, 0, 0])
     if (config.showBg) cv.addWeighted(display, 1, bgRoi, config.bgWeight, 0.0, display)
     if (config.showEdge) {
         const edgeCvted = new cv.Mat.zeros(edgeRoi.rows, edgeRoi.cols, edgeRoi.type())
@@ -189,7 +187,27 @@ export const growValley = (mat: any) => {
     }
 }
 
+const deleteRois = () => {
+    if (display) {
+        display.delete()
+        bgRoi.delete()
+        edgeRoi.delete()
+        labelRoi.delete()
+    }
+}
+
+export const deleteMats = () => {
+    deleteRois()
+    display = bgRoi = edgeRoi = labelRoi = undefined
+    if (bgMat) {
+        bgMat.delete()
+        edgeMat.delete()
+        labelMat.delete()
+    }
+}
+
 export const initMats = (src: HTMLImageElement) => {
+    deleteMats()
     bgMat = cv.imread(src)
     edgeMat = new cv.Mat()
     cv.cvtColor(bgMat, edgeMat, cv.COLOR_RGB2GRAY, 0)
@@ -198,12 +216,7 @@ export const initMats = (src: HTMLImageElement) => {
 }
 
 export const setRoi = (roi: any) => {
-    if (display) {
-        display.delete()
-        bgRoi.delete()
-        edgeRoi.delete()
-        labelRoi.delete()
-    }
+    deleteRois()
     display = new cv.Mat.zeros(roi.height, roi.width, bgMat.type())
     bgRoi = bgMat.roi(roi)
     edgeRoi = edgeMat.roi(roi)
