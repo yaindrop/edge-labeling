@@ -1,3 +1,7 @@
+* {
+    user-select: none;
+}
+
 .App {
   text-align: center;
   display: flex;
@@ -13,8 +17,8 @@
     display: flex;
     background-color: #F9F9F9;
     box-shadow: 3px 2px 2px #888888;
-    width: 1000px;
-    height: 1000px;
+    width: 1024px;
+    height: 1024px;
     margin: 24px;
 }
 
@@ -37,4 +41,8 @@
 
 .moving {
     cursor: move !important;
+}
+
+.App > .ant-row {
+    width: 1024px;
 }
