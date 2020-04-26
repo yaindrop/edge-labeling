@@ -20,7 +20,7 @@ export type ComposeConfig = {
     labelWeight: number,
 }
 
-export const Pos = {
+const Pos = {
     dist: (v1: number[], v2: number[]) => Math.sqrt(Math.pow(v1[0] - v2[0], 2) + Math.pow(v1[1] - v2[1], 2)),
     add: (v1: number[], v2: number[]) => [v1[0] + v2[0], v1[1] + v2[1]],
     sub: (v1: number[], v2: number[]) => [v1[0] - v2[0], v1[1] - v2[1]],
@@ -36,11 +36,9 @@ export const Pos = {
     ],
 }
 
-export const getVal = (mat: any, pos: number[]) => {
-    if (pos[0] >= 0 && pos[1] >= 0 && pos[0] < mat.cols && pos[1] < mat.rows)
-        return mat.ucharPtr(pos[0], pos[1])[0] as number
-    return 0
-}
+export const getVal = (mat: any, pos: number[]) =>
+    (pos[0] >= 0 && pos[1] >= 0 && pos[0] < mat.cols && pos[1] < mat.rows) ?
+        mat.ucharPtr(pos[0], pos[1])[0] as number : 0
 
 export const fallPos = (mat: any, pos: number[], earlyStop = false) => {
     let [curPos, curVal] = [pos, getVal(mat, pos)]
@@ -63,21 +61,27 @@ export const fallPos = (mat: any, pos: number[], earlyStop = false) => {
     return curPos
 }
 
-const isBranch = (mat: any, pos: number[]) => {
-    let nbrs = Pos.nbrs(pos)
-    let vals = nbrs.map(p => getVal(mat, p)).map(v => v === 255 ? 1 : 0)
+const isCluster = (nbrVals: number[]) =>
+    (nbrVals[7] && nbrVals[0] && nbrVals[1]) ||
+    (nbrVals[1] && nbrVals[2] && nbrVals[3]) ||
+    (nbrVals[3] && nbrVals[4] && nbrVals[5]) ||
+    (nbrVals[5] && nbrVals[6] && nbrVals[7])
+
+const isBranch = (nbrVals: number[]) => {
     let changes = 0
-    if ((vals[7] && vals[0] && vals[1]) ||
-        (vals[1] && vals[2] && vals[3]) ||
-        (vals[3] && vals[4] && vals[5]) ||
-        (vals[5] && vals[6] && vals[7])) return true
-    for (let i = 0; i < 8; i++) changes += vals[i] ^ vals[(i + 1) % 8]
+    for (let i = 0; i < 8; i++) changes += nbrVals[i] ^ nbrVals[(i + 1) % 8]
     return changes > 4
+}
+
+const isBranchOrCluster = (mat: any, pos: number[]) => {
+    const nbrs = Pos.nbrs(pos)
+    const vals = nbrs.map(p => getVal(mat, p)).map(v => v === 255 ? 1 : 0)
+    return isCluster(vals) || isBranch(vals)
 }
 
 export const selectTillBranch = (mat: any, pos: number[], inclusive = false) => {
     if (getVal(mat, pos) !== 255) return []
-    if (isBranch(mat, pos)) return [pos]
+    if (isBranchOrCluster(mat, pos)) return [pos]
     const res: number[][] = []
     const stack: number[][] = []
     const visited: { [p: string]: boolean } = {}
@@ -88,7 +92,7 @@ export const selectTillBranch = (mat: any, pos: number[], inclusive = false) => 
         visited[curPos.toString()] = true
         res.push(curPos)
         const edgeNbrs = Pos.nbrs(curPos).filter(p => getVal(mat, p) === 255)
-        const branchedNbrs = edgeNbrs.filter(p => isBranch(mat, p))
+        const branchedNbrs = edgeNbrs.filter(p => isBranchOrCluster(mat, p))
         if (branchedNbrs.length) {
             if (inclusive) branchedNbrs.forEach(p => res.push(p))
             continue
@@ -105,8 +109,13 @@ export const needRepair = (mat: any[], pos: number[]) => {
     const sum = vals.reduce((prev, curr) => prev + curr, 0 as number)
     if (sum >= 7) return true
     let changes = 0
-    for (let i = 0; i < 8; i++) changes += vals[i] ^ vals[(i + 1) % 8]
-    return changes >= 4
+    if (sum === 2) {
+        for (let i = 0; i < 8; i++) changes += vals[i] && vals[i] ^ vals[(i + 1) % 8] && vals[i] ^ vals[(i + 2) % 8]
+        return changes === 2
+    } else {
+        for (let i = 0; i < 8; i++) changes += vals[i] ^ vals[(i + 1) % 8] && vals[i] ^ vals[(i + 2) % 8]
+        return changes >= 3
+    }
 }
 
 export const fillSelect = (mats: any[], pos: number[]) => {

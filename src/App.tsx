@@ -29,7 +29,7 @@ const ValidCursorModes = {
 
 const ComposeConfigs = {
     0: DEFAULT_COMPOSE,
-    1: { ...DEFAULT_COMPOSE, showEdgeValley: true, bgWeight: 0.5 },
+    1: { ...DEFAULT_COMPOSE, bgWeight: 1, edgeWeight: 1.0 },
     2: { ...DEFAULT_COMPOSE, bgWeight: 0.8, edgeWeight: 0.8 },
     3: { ...DEFAULT_COMPOSE, bgWeight: 0.8, edgeWeight: 0.8 },
     4: { ...DEFAULT_COMPOSE, bgWeight: 0.6 },
